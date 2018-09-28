@@ -1,14 +1,19 @@
 require('dotenv').config()
 const express =  require("express"),
-      mysql = require("mysql");
-      bodyParser = require("body-parser");
+      mysql = require("mysql"),
+      bodyParser = require("body-parser"),
+      paginate = require('express-paginate');
+var sortBy = require('sort-by');
+
+
 
 var app = express();
 const NODE_PORT = process.env.PORT;
 
-const sqlFindAllBooks = "SELECT * FROM books LIMIT ? OFFSET ?";
-const sqlFindOneBook = "SELECT id, concat(author_firstname, ' ', author_lastname), title, cover_thumbnail, modified_date, created_date FROM books WHERE id=? ";
-
+const sqlFindAllBooks = "SELECT cover_thumbnail, title, concat(author_firstname, ' ', author_lastname) as author FROM books LIMIT ? OFFSET ?";
+//const sqlFindAllBooks = "SELECT cover_thumbnail, title, concat(author_firstname, ' ', author_lastname) as author FROM books WHERE (title LIKE ?) || (author LIKE ?) LIMIT ? OFFSET ?";
+//const sqlFindOneBook = "SELECT id, concat(author_firstname, ' ', author_lastname) as author, title, cover_thumbnail, modified_date, created_date FROM books WHERE id=? ";
+const sqlFindOneBook = "SELECT * FROM books WHERE id=? ";
 
 var pool = mysql.createPool({
     host: process.env.DB_HOST,
@@ -51,6 +56,7 @@ var findAllBooks = makeQuery(sqlFindAllBooks, pool);
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+//app.use(paginate.middleware(10, 50));
 
 app.get("/books/:bookId", (req, res)=>{
     console.log("/books params !");
@@ -69,14 +75,17 @@ app.get("/books", (req, res)=>{
     console.log("GET /books query !");
     var bookId = req.query.bookId;
     console.log(bookId);
+
     if(typeof(bookId) === 'undefined' ){
         console.log(">>>" + bookId);
         findAllBooks([10,0]).then((results)=>{
-            console.log(results);
-            res.json(results);
+            console.log(results.sort(sortBy('title')));
+            res.json(results.sort(sortBy('title')));
         }).catch((error)=>{
             res.status(500).json(error);
         });
+
+
     }else{
         findOneBookById([parseInt(bookId)]).then((results)=>{
             console.log(results);
